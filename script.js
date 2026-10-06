@@ -245,3 +245,150 @@ function handleImageError(imgElement) {
 
 // 전역 스코프에 노출
 window.handleImageError = handleImageError;
+
+/* ==========================================================================
+   11. GA4 이벤트 측정 (구간 도달 section_view & CTA 클릭 cta_click)
+   ========================================================================== */
+(function setupGa4Tracking() {
+  // 중복 등록 방지 가드
+  if (window.__GA4_TRACKING_INITIALIZED__) {
+    return;
+  }
+  window.__GA4_TRACKING_INITIALIZED__ = true;
+
+  // 안전한 gtag 전송 래퍼 (GA 차단 또는 미로드 시에도 기본 링크 동작 보장)
+  function sendGaEvent(eventName, params) {
+    try {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', eventName, params);
+      }
+    } catch (err) {
+      // 오류 발생 시 무시하고 정상 흐름 유지
+    }
+  }
+
+  // --- [1. 구간 도달: section_view] ---
+  const SECTION_TARGETS = [
+    { id: 'hero-title', name: 'hero' },
+    { id: 'detail-space-title', name: 'detail' },
+    { id: 'purchase-title', name: 'cta' }
+  ];
+
+  // 세션/페이지 로드당 중복 전송 방지 Set (한 번 보낸 구간은 다시 보내지 않음)
+  const sentSections = new Set();
+
+  function initSectionObserver() {
+    const headerEl = document.getElementById('site-header');
+    const headerHeight = headerEl ? headerEl.offsetHeight : 64;
+
+    const targetMap = new Map();
+    const elementsToObserve = [];
+
+    SECTION_TARGETS.forEach(({ id, name }) => {
+      const el = document.getElementById(id);
+      if (el) {
+        targetMap.set(el, name);
+        elementsToObserve.push(el);
+      }
+    });
+
+    if (elementsToObserve.length === 0) return;
+
+    // 고정 헤더 가림 높이를 제외하고(rootMargin top 음수), 제목 면적 50% 이상 진입 시 측정
+    const observer = new IntersectionObserver((entries) => {
+      // 문서가 실제로 활성화되어 보이는 상태에서만 전송
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          const sectionName = targetMap.get(entry.target);
+          if (sectionName && !sentSections.has(sectionName)) {
+            sentSections.add(sectionName);
+            sendGaEvent('section_view', { section_name: sectionName });
+            observer.unobserve(entry.target);
+          }
+        }
+      });
+    }, {
+      threshold: 0.5,
+      rootMargin: `-${headerHeight}px 0px 0px 0px`
+    });
+
+    elementsToObserve.forEach(el => observer.observe(el));
+
+    // 다른 탭에서 돌아왔을 때 현재 보이는 제목 누락 방지 체크 함수
+    function checkVisibleSectionsOnTabReturn() {
+      if (document.visibilityState !== 'visible') return;
+
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+
+      SECTION_TARGETS.forEach(({ id, name }) => {
+        if (sentSections.has(name)) return;
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        const rect = el.getBoundingClientRect();
+        const visibleTop = Math.max(rect.top, headerHeight);
+        const visibleBottom = Math.min(rect.bottom, viewportHeight);
+        const visibleLeft = Math.max(rect.left, 0);
+        const visibleRight = Math.min(rect.right, viewportWidth);
+
+        if (visibleBottom > visibleTop && visibleRight > visibleLeft) {
+          const visibleArea = (visibleBottom - visibleTop) * (visibleRight - visibleLeft);
+          const totalArea = rect.width * rect.height;
+          if (totalArea > 0 && (visibleArea / totalArea) >= 0.5) {
+            sentSections.add(name);
+            sendGaEvent('section_view', { section_name: name });
+            observer.unobserve(el);
+          }
+        }
+      });
+    }
+
+    document.addEventListener('visibilitychange', checkVisibleSectionsOnTabReturn);
+  }
+
+  // --- [2. CTA 클릭: cta_click] ---
+  function initCtaClickTracking() {
+    const boundButtons = new Set();
+
+    const ctaConfigs = [
+      { selectors: ['#cta-hero', '[data-cta-location="hero"]'], location: 'hero' },
+      { selectors: ['#cta-final', '[data-cta-location="final"]'], location: 'final' }
+    ];
+
+    ctaConfigs.forEach(({ selectors, location }) => {
+      selectors.forEach(sel => {
+        const matches = document.querySelectorAll(sel);
+        matches.forEach(el => {
+          // 태그가 <a>면 버튼 본체, 컨테이너면 내부 <a> 링크 선택
+          const btn = el.tagName === 'A' ? el : el.querySelector('a.cta-action-btn, a');
+          if (btn && !boundButtons.has(btn)) {
+            boundButtons.add(btn);
+
+            // 일반 클릭과 키보드 Enter(기본 click 이벤트 발생) 모두 1회 전송
+            // re-click 시 매번 새로운 클릭으로 기록
+            btn.addEventListener('click', () => {
+              sendGaEvent('cta_click', { button_location: location });
+            });
+          }
+        });
+      });
+    });
+  }
+
+  // DOM 준비 완료 시 실행
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initSectionObserver();
+      initCtaClickTracking();
+    });
+  } else {
+    initSectionObserver();
+    initCtaClickTracking();
+  }
+})();
+
