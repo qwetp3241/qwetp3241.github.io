@@ -318,8 +318,8 @@ window.handleImageError = handleImageError;
 
     elementsToObserve.forEach(el => observer.observe(el));
 
-    // 다른 탭에서 돌아왔을 때 현재 보이는 제목 누락 방지 체크 함수
-    function checkVisibleSectionsOnTabReturn() {
+    // 초기 로드, 스크롤, 탭 복귀 시 현재 보이는 제목 누락 방지 체크 함수
+    function checkVisibleSections() {
       if (document.visibilityState !== 'visible') return;
 
       const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
@@ -346,9 +346,19 @@ window.handleImageError = handleImageError;
           }
         }
       });
+
+      // 모든 대상이 전송 완료되었으면 스크롤 리스너 자동 해제
+      if (sentSections.size >= SECTION_TARGETS.length) {
+        window.removeEventListener('scroll', checkVisibleSections);
+      }
     }
 
-    document.addEventListener('visibilitychange', checkVisibleSectionsOnTabReturn);
+    // 1) 탭 복귀 시 체크
+    document.addEventListener('visibilitychange', checkVisibleSections);
+    // 2) 스크롤 시 고속 이동/점프로 인한 누락 방지 백업
+    window.addEventListener('scroll', checkVisibleSections, { passive: true });
+    // 3) 초기 로드 시 화면에 바로 보이는 제목 즉시 체크
+    checkVisibleSections();
   }
 
   // --- [2. CTA 클릭: cta_click] ---

@@ -8,7 +8,9 @@
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    gtag('config', 'G-SJ5L54LPSB');
+    // Tag Assistant(?gtm_debug=...) 또는 디버그 파라미터가 있을 때만 debug_mode 활성화 (전체 일반 방문자에게는 미적용)
+    var isDebug = /[?&](gtm_debug|debug_mode)=/.test(window.location.search);
+    gtag('config', 'G-SJ5L54LPSB', isDebug ? { 'debug_mode': true } : {});
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
