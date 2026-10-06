@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 56" width="28" height="56" fill="none">
+  <defs>
+    <linearGradient id="silverWire" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#d4d4d4"/>
+      <stop offset="50%" stop-color="#8a8a8a"/>
+      <stop offset="75%" stop-color="#f0f0f0"/>
+      <stop offset="90%" stop-color="#737373"/>
+      <stop offset="100%" stop-color="#e0e0e0"/>
+    </linearGradient>
+    <filter id="wireShadow" x="-30%" y="-30%" width="170%" height="170%">
+      <feDropShadow dx="1.5" dy="2.5" stdDeviation="1.5" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <path d="M10 20 L10 38 C10 43, 16 43, 16 38 L16 11 C16 4.5, 6.5 4.5, 6.5 11 L6.5 42 C6.5 51, 21.5 51, 21.5 42 L21.5 18"
+        stroke="url(#silverWire)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" filter="url(#wireShadow)"/>
+</svg>
